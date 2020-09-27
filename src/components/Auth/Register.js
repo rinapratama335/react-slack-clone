@@ -8,6 +8,7 @@ import {
   Message,
   Icon,
 } from "semantic-ui-react";
+import md5 from "md5";
 import { Link } from "react-router-dom";
 import firebase from "../../firebase";
 
@@ -19,6 +20,7 @@ class Register extends Component {
     passwordConfirmation: "",
     errors: [],
     loading: false,
+    usersRef: firebase.database().ref("users"),
   };
 
   handleChange = (event) => {
@@ -79,6 +81,14 @@ class Register extends Component {
       : "";
   };
 
+  // Function untuk menyimpan data ke database firebase
+  saveUser = (createUser) => {
+    return this.state.usersRef.child(createUser.user.uid).set({
+      name: createUser.user.displayName,
+      avatar: createUser.user.photoURL,
+    });
+  };
+
   handleSubmit = (event) => {
     if (this.isFormValid()) {
       this.setState({ errors: [], loading: true });
@@ -88,7 +98,27 @@ class Register extends Component {
         .createUserWithEmailAndPassword(this.state.email, this.state.password)
         .then((createUser) => {
           console.log(createUser);
-          this.setState({ loading: false });
+          createUser.user
+            .updateProfile({
+              displayName: this.state.username,
+              photoURL: `http://gravatar.com/avatar/${md5(
+                createUser.user.email
+              )}?d=identicon`,
+            })
+            .then(() => {
+              //save data ke database
+              this.saveUser(createUser).then(() => {
+                console.log("user created");
+              });
+              // this.setState({ loading: false });
+            })
+            .catch((err) => {
+              console.log(err);
+              this.setState({
+                errors: this.state.errors.concat(err),
+                loading: false,
+              });
+            });
         })
         .catch((err) => {
           console.error(err);
